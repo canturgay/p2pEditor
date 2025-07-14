@@ -1,28 +1,50 @@
 import { defineStore } from 'pinia';
 import { ref, watch } from 'vue';
 import { gun } from 'boot/vueGun';
+import diff_match_patch from 'diff-match-patch';
 
 export const useEditorStore = defineStore('editor', () => {
   const content = ref('');
 
-  // Reference to a dedicated text field on the document node
-  const textNode = gun.get('p2peditor').get('document').get('text');
+  // diff-match-patch instance
+  const dmp = new diff_match_patch();
 
-  // Keep track of last value we pushed locally to avoid echo updates
-  let lastSent = '';
+  // Gun nodes: authenticated user's document text and patches
+  const docNode = gun.user().get('document');
+  const patchesNode = docNode.get('patches');
 
-  // Listen for remote updates
-  textNode.on((data) => {
-    if (typeof data !== 'string') return;
-    if (data === lastSent || data === content.value) return;
-    content.value = data;
+  // Track last known synced content and last patch we sent (to ignore echoes)
+  let lastKnownContent = '';
+  let lastSentPatch = '';
+
+  // Apply incoming patches (existing & future)
+  patchesNode.map().on((patchText) => {
+    if (typeof patchText !== 'string') return;
+    if (patchText === lastSentPatch) return; // Ignore our own patch echoes
+
+    const incomingPatches = dmp.patch_fromText(patchText);
+    const [updatedText] = dmp.patch_apply(incomingPatches, content.value);
+
+    if (updatedText === content.value) return; // No change
+
+    content.value = updatedText;
+    lastKnownContent = updatedText;
   });
 
-  // Persist local edits
+  // Persist local edits as patches
   watch(content, (newVal) => {
-    if (newVal === lastSent) return; // Already pushed
-    lastSent = newVal;
-    textNode.put(newVal);
+    if (newVal === lastKnownContent) return; // Already in sync
+
+    const patches = dmp.patch_make(lastKnownContent, newVal);
+    const patchText = dmp.patch_toText(patches);
+
+    // Update trackers before network send to avoid echo
+    lastKnownContent = newVal;
+    lastSentPatch = patchText;
+
+    // Broadcast patch to peers
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    patchesNode.set(patchText as any);
   });
 
   return { content };
