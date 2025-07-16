@@ -183,5 +183,36 @@ export const useDocumentStore = defineStore('documents', () => {
     if (item) item.title = newTitle;
   }
 
-  return { docs, createDocument, shareDocument, loadDocuments, renameDocument };
+  /**
+   * Delete a document and remove all references for the current user.
+   * Note: In GUN, setting a node to `null` breaks references but data may still exist on
+   * other peers until garbage-collected. This implementation focuses on making the
+   * document disappear for the current user and anyone that receives this `null` update.
+   */
+  function deleteDocument(docId: string) {
+    if (!myPub) {
+      Notify.create({ type: 'negative', message: 'User not authenticated' });
+      return;
+    }
+
+    const docRef = gun.get('documents').get(docId);
+
+    // Break references from our user profile to this doc
+    user.get('docs').get(docId).put(null);
+
+    // Remove our ownership/role/key entries so we no longer have access
+    docRef.get('owners').get(myPub).put(null);
+    docRef.get('roles').get(myPub).put(null);
+    docRef.get('keys').get(myPub).put(null);
+
+    // Optionally mark the root doc node as deleted – this removes the data for peers
+    docRef.put(null);
+
+    // Remove from local list
+    docs.value = docs.value.filter((d) => d.id !== docId);
+
+    Notify.create({ type: 'positive', message: 'Document deleted' });
+  }
+
+  return { docs, createDocument, shareDocument, loadDocuments, renameDocument, deleteDocument };
 });

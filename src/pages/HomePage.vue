@@ -11,6 +11,14 @@
           <q-item-section side>
             <q-btn dense flat icon="share" @click.stop="openShare(d)" />
             <q-btn dense flat icon="edit" @click.stop="openRename(d)" />
+            <q-btn
+              v-if="d.isOwner"
+              dense
+              flat
+              color="negative"
+              icon="delete"
+              @click.stop="openDelete(d)"
+            />
           </q-item-section>
         </q-item>
       </q-list>
@@ -65,6 +73,20 @@
         <q-card-actions align="right">
           <q-btn flat label="Cancel" v-close-popup />
           <q-btn flat label="Share" color="primary" @click="doShare" v-close-popup />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- Delete confirm dialog -->
+    <q-dialog v-model="deleteDialog">
+      <q-card>
+        <q-card-section class="text-h6">Delete Document</q-card-section>
+        <q-card-section>
+          Are you sure you want to delete "{{ deleteItem?.title }}"? This action cannot be undone.
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" v-close-popup />
+          <q-btn flat label="Delete" color="negative" @click="doDelete" v-close-popup />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -130,6 +152,19 @@ function openShare(d: { id: string; title: string }) {
 function doShare() {
   if (shareItem.value && shareAlias.value) {
     docsStore.shareDocument(shareItem.value.id, shareAlias.value, shareRole.value);
+  }
+}
+
+// Delete confirm state & actions
+const deleteDialog = ref(false);
+const deleteItem = ref<{ id: string; title: string } | null>(null);
+function openDelete(d: { id: string; title: string }) {
+  deleteItem.value = d;
+  deleteDialog.value = true;
+}
+function doDelete() {
+  if (deleteItem.value) {
+    docsStore.deleteDocument(deleteItem.value.id);
   }
 }
 </script>
