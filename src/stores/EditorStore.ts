@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { defineStore } from 'pinia';
-import { ref, watch } from 'vue';
+import { watch, ref } from 'vue';
 import { gun, SEA } from 'boot/vueGun';
+import { useNetworkStore } from './NetworkStore';
 
 export const useEditorStore = defineStore('editor', () => {
   const content = ref('');
@@ -10,10 +11,85 @@ export const useEditorStore = defineStore('editor', () => {
   let symKey: string | null = null;
   let lastSent = '';
   let offHandler: any = null;
+  let draftNode: any = null;
+  // lastRemoteText removed (was unused)
+  const networkStore = useNetworkStore();
+  const conflict = ref<{ local: string; remote: string } | null>(null);
 
   const user = gun.user();
   const myPair: any = (user as any)._.sea;
   const myPub: string | undefined = (user.is as any)?.pub;
+
+  async function reconcileDraft() {
+    if (!symKey || !textNode || !draftNode) return;
+    const [encDraft, encRemote] = await Promise.all([
+      new Promise<any>((res) => draftNode.once((v: any) => res(v))),
+      new Promise<any>((res) => textNode.once((v: any) => res(v))),
+    ]);
+
+    let localText = '';
+    let remoteText = '';
+
+    if (typeof encDraft === 'string') {
+      const dec = await (SEA as any).decrypt(encDraft, symKey);
+      if (typeof dec === 'string') localText = dec;
+    }
+
+    if (typeof encRemote === 'string') {
+      const dec = await (SEA as any).decrypt(encRemote, symKey);
+      if (typeof dec === 'string') remoteText = dec;
+    }
+
+    if (!localText) return; // nothing to sync
+
+    if (localText === remoteText) {
+      // Nothing to merge; clear draft.
+      draftNode.put(null);
+      return;
+    }
+
+    // If both remote and local differ, require user resolution.
+    conflict.value = { local: localText, remote: remoteText };
+  }
+
+  async function keepLocal() {
+    if (!conflict.value || !symKey) return;
+    const encrypted = await (SEA as any).encrypt(conflict.value.local, symKey);
+    lastSent = encrypted;
+    textNode.put(encrypted);
+    draftNode.put(null);
+    content.value = conflict.value.local;
+    conflict.value = null;
+  }
+
+  function acceptRemote() {
+    if (!conflict.value) return;
+    draftNode.put(null);
+    content.value = conflict.value.remote;
+    conflict.value = null;
+    // nothing to reset
+  }
+
+  async function applyMerge(mergedText: string) {
+    if (!symKey) return;
+    const encrypted = await (SEA as any).encrypt(mergedText, symKey);
+    lastSent = encrypted;
+    if (textNode) textNode.put(encrypted);
+    if (draftNode) draftNode.put(null);
+    content.value = mergedText;
+    conflict.value = null;
+    // nothing to reset
+  }
+
+  // Watch online/offline transitions
+  watch(
+    () => networkStore.isOnline,
+    (online, prev) => {
+      if (online && !prev) {
+        void reconcileDraft();
+      }
+    },
+  );
 
   async function openDocument(docId: string) {
     if (!myPub) return;
@@ -73,6 +149,22 @@ export const useEditorStore = defineStore('editor', () => {
     symKey = decryptedSym;
 
     textNode = docRef.get('text');
+    // grab initial remote value (unused after refactor)
+    draftNode = docRef.get('drafts').get(myPub);
+
+    // Load existing draft first (offline edits)
+    draftNode.once(async (encDraft: any) => {
+      if (!encDraft) return;
+      if (!symKey) return;
+      try {
+        const dec = await (SEA as any).decrypt(encDraft, symKey);
+        if (typeof dec === 'string') {
+          content.value = dec;
+        }
+      } catch {
+        /* ignore */
+      }
+    });
 
     // Listen for remote updates
     offHandler = textNode.on(async (data: any) => {
@@ -80,8 +172,10 @@ export const useEditorStore = defineStore('editor', () => {
       if (data === lastSent) return;
       if (!symKey) return;
       const decrypted = await (SEA as any).decrypt(data, symKey);
-      if (typeof decrypted === 'string' && decrypted !== content.value) {
-        content.value = decrypted;
+      if (typeof decrypted === 'string') {
+        if (decrypted !== content.value) {
+          content.value = decrypted;
+        }
       }
     });
   }
@@ -97,12 +191,31 @@ export const useEditorStore = defineStore('editor', () => {
 
   // Persist local edits
   watch(content, async (newVal) => {
-    if (!symKey || !textNode) return;
-    if (newVal === lastSent) return;
+    if (!symKey) return;
+    if (newVal === '') return;
+
     const encrypted = await (SEA as any).encrypt(newVal, symKey);
-    lastSent = encrypted;
-    textNode.put(encrypted);
+
+    if (networkStore.isOnline && textNode) {
+      if (encrypted === lastSent) return;
+      lastSent = encrypted;
+      textNode.put(encrypted);
+      // Clear draft copy if exists
+      if (draftNode) draftNode.put(null);
+    } else if (draftNode) {
+      // Offline – store to draft subnode
+      draftNode.put(encrypted);
+    }
   });
 
-  return { content, active: activeDocId, openDocument, close };
+  return {
+    content,
+    active: activeDocId,
+    conflict,
+    openDocument,
+    close,
+    keepLocal,
+    acceptRemote,
+    applyMerge,
+  };
 });

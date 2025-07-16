@@ -16,6 +16,8 @@
   },
   "dependencies": {
     "@quasar/extras": "^1.16.4",
+    "@types/diff-match-patch": "^1.0.36",
+    "diff-match-patch": "^1.0.5",
     "pinia": "^3.0.1",
     "quasar": "^2.16.0",
     "vue": "^3.4.18",

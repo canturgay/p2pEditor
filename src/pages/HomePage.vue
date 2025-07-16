@@ -90,6 +90,9 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- Conflict Resolution dialog -->
+    <ConflictResolutionDialog />
   </q-page>
 </template>
 
@@ -97,6 +100,7 @@
 import { onMounted, ref } from 'vue';
 import { useDocumentStore } from '../stores/DocumentStore';
 import { useEditorStore } from '../stores/EditorStore';
+import ConflictResolutionDialog from '../components/ConflictResolutionDialog.vue';
 
 const docsStore = useDocumentStore();
 const editorStore = useEditorStore();
