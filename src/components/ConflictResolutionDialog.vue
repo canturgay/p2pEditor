@@ -1,5 +1,5 @@
 <template>
-  <q-dialog v-model="isOpen" persistent maximized>
+  <q-dialog v-model="isOpen" persistent maximized data-cy="conflict-dialog">
     <q-card class="fit column">
       <q-card-section class="row items-center bg-warning text-dark">
         <q-icon name="warning" class="q-mr-sm" />
@@ -21,6 +21,7 @@
               <pre
                 style="margin: 0; white-space: pre-wrap; font-family: monospace"
                 v-html="row.remoteHtml"
+                data-cy="remote-content"
               ></pre>
             </div>
 
@@ -44,15 +45,35 @@
               <pre
                 style="margin: 0; white-space: pre-wrap; font-family: monospace"
                 v-html="row.localHtml"
+                data-cy="local-content"
               ></pre>
             </div>
           </div>
         </div>
       </q-card-section>
       <q-card-actions align="right">
-        <q-btn flat label="Use Remote" color="primary" @click="onAcceptRemote" />
-        <q-btn flat label="Keep Local" color="primary" @click="onKeepLocal" />
-        <q-btn flat label="Merge Selection" color="positive" :disable="!hasDiff" @click="onMerge" />
+        <q-btn
+          flat
+          label="Use Remote"
+          color="primary"
+          @click="onAcceptRemote"
+          data-cy="btn-use-remote"
+        />
+        <q-btn
+          flat
+          label="Keep Local"
+          color="primary"
+          @click="onKeepLocal"
+          data-cy="btn-keep-local"
+        />
+        <q-btn
+          flat
+          label="Merge Selection"
+          color="positive"
+          :disable="!hasDiff"
+          @click="onMerge"
+          data-cy="btn-merge"
+        />
       </q-card-actions>
     </q-card>
   </q-dialog>

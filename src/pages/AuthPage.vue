@@ -2,20 +2,40 @@
   <q-page class="q-pa-md flex flex-center column">
     <!-- Auth Form -->
     <q-form @submit.prevent="signIn" class="q-gutter-md" style="width: 320px">
-      <q-input v-model="alias" label="Username" outlined dense />
-      <q-input v-model="pass" label="Passphrase" type="password" outlined dense />
+      <q-input v-model="alias" label="Username" outlined dense data-cy="input-username" />
+      <q-input
+        v-model="pass"
+        label="Passphrase"
+        type="password"
+        outlined
+        dense
+        data-cy="input-pass"
+      />
 
       <div class="row justify-between q-gutter-sm">
-        <q-btn label="Sign In" color="primary" type="submit" no-caps class="col" />
-        <q-btn label="Sign Up" color="secondary" @click="signUp" no-caps class="col" />
+        <q-btn
+          label="Sign In"
+          color="primary"
+          type="submit"
+          no-caps
+          class="col"
+          data-cy="btn-signin"
+        />
+        <q-btn
+          label="Sign Up"
+          color="secondary"
+          @click="signUp"
+          no-caps
+          class="col"
+          data-cy="btn-signup"
+        />
       </div>
     </q-form>
   </q-page>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, onMounted } from 'vue';
 import { gun } from 'boot/vueGun';
 import { useAuthStore } from '../stores/AuthStore';
 import { storeToRefs } from 'pinia';
@@ -29,21 +49,6 @@ export interface Message {
 const authStore = useAuthStore();
 const { alias, pass } = storeToRefs(authStore);
 const { signIn, signUp } = authStore;
-const router = useRouter();
-
-// Redirect to HomePage when authenticated
-watch(
-  () => authStore.isAuthenticated,
-  async (val) => {
-    if (val) {
-      try {
-        await router.push('/home');
-      } catch (error) {
-        console.error('Failed to navigate to Home page:', error);
-      }
-    }
-  },
-);
 
 const messages = ref<Message[]>([]);
 

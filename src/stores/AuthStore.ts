@@ -2,11 +2,41 @@ import { defineStore, acceptHMRUpdate } from 'pinia';
 import { ref } from 'vue';
 import { gun } from 'boot/vueGun';
 import { Notify, Loading } from 'quasar';
+import { useRouter } from 'vue-router';
 
 interface Ack {
-  err?: string;
+  // Login Success case
+  ack?: number;
+  back?: object;
+  get?: string;
+  gun?: object;
+  id?: number;
+  on?: () => void;
+  opt?: object;
+  put?: {
+    pub: string;
+    alias: string;
+    epub: string;
+  };
+  root?: object;
+  sea?: {
+    pub: string;
+    priv: string;
+    epub: string;
+    epriv: string;
+  };
+  soul?: string;
+  tag?: object;
+
+  // Signup and Delete case
   ok?: number;
+
+  // Signup case
+  pub?: string;
   [key: string]: unknown;
+
+  // Error case
+  err?: string;
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -16,6 +46,7 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = ref(false);
   const ackData = ref<Ack | null>(null);
   const signUpError = ref<string | null>(null);
+  const router = useRouter();
 
   // Gun user instance with session recall to keep user logged in across refreshes
   const user = gun.user();
@@ -23,13 +54,18 @@ export const useAuthStore = defineStore('auth', () => {
 
   // Listen for successful authentication events
   gun.on('auth', (ack: Ack) => {
-    isAuthenticated.value = true;
-    ackData.value = ack;
-    Notify.create({
-      type: 'positive',
-      message: 'Successfully signed in!',
-    });
-    Loading.hide();
+    if (ack.ok !== 0) {
+      isAuthenticated.value = true;
+      ackData.value = ack;
+      Notify.create({
+        type: 'positive',
+        message: `Successfully signed in. Welcome back ${ack.put?.alias}!`,
+      });
+      Loading.hide();
+      router.push('/home').catch((e) => {
+        console.error(e);
+      });
+    }
   });
 
   // Actions
@@ -85,6 +121,9 @@ export const useAuthStore = defineStore('auth', () => {
     user.leave();
     isAuthenticated.value = false;
     ackData.value = null;
+    router.push('/').catch((e) => {
+      console.error(e);
+    });
     Notify.create({
       type: 'info',
       message: 'Logged out.',
@@ -100,9 +139,12 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     ackData,
     signUpError,
+    user, // expose user instance
   };
 });
 
+// @ts-expect-error hot module replacement
 if (import.meta.hot) {
+  // @ts-expect-error hot module replacement
   import.meta.hot.accept(acceptHMRUpdate(useAuthStore, import.meta.hot));
 }

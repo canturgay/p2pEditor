@@ -2,14 +2,22 @@
   <q-page class="q-pa-md">
     <div v-if="!editorStore.active">
       <div class="row q-mb-md items-center">
-        <q-btn color="primary" label="New Document" @click="newDialog = true" class="q-mr-sm" />
-        <q-btn outline label="Refresh" @click="docsStore.loadDocuments" />
+        <q-btn
+          color="primary"
+          label="New Document"
+          @click="newDialog = true"
+          class="q-mr-sm"
+          data-cy="btn-new-doc"
+        />
+        <q-btn outline label="Refresh" @click="docsStore.loadDocuments" data-cy="btn-refresh" />
       </div>
       <q-list bordered separator>
-        <q-item v-for="d in docsStore.docs" :key="d.id" clickable>
-          <q-item-section @click="openDoc(d.id)">{{ d.title }}</q-item-section>
+        <q-item v-for="d in docsStore.docs" :key="d.id" clickable :data-doc-id="d.id">
+          <q-item-section @click="openDoc(d.id)" data-cy="doc-item-title">{{
+            d.title
+          }}</q-item-section>
           <q-item-section side>
-            <q-btn dense flat icon="share" @click.stop="openShare(d)" />
+            <q-btn dense flat icon="share" @click.stop="openShare(d)" data-cy="icon-share-doc" />
             <q-btn dense flat icon="edit" @click.stop="openRename(d)" />
             <q-btn
               v-if="d.isOwner"
@@ -17,6 +25,7 @@
               flat
               color="negative"
               icon="delete"
+              data-cy="icon-delete-doc"
               @click.stop="openDelete(d)"
             />
           </q-item-section>
@@ -24,8 +33,8 @@
       </q-list>
     </div>
     <div v-else>
-      <q-btn flat icon="arrow_back" class="q-mb-md" @click="editorStore.close" />
-      <q-editor v-model="editorStore.content" />
+      <q-btn flat icon="arrow_back" class="q-mb-md" @click="editorStore.close" data-cy="btn-back" />
+      <q-editor v-model="editorStore.content" data-cy="editor" />
     </div>
 
     <!-- New document dialog -->
@@ -35,11 +44,18 @@
           <div class="text-h6">Create Document</div>
         </q-card-section>
         <q-card-section>
-          <q-input v-model="newTitle" label="Title" />
+          <q-input v-model="newTitle" label="Title" data-cy="input-new-title" />
         </q-card-section>
         <q-card-actions align="right">
           <q-btn flat label="Cancel" v-close-popup />
-          <q-btn flat label="Create" color="primary" @click="createDoc" v-close-popup />
+          <q-btn
+            flat
+            label="Create"
+            color="primary"
+            @click="createDoc"
+            v-close-popup
+            data-cy="btn-create-doc"
+          />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -67,12 +83,29 @@
           <div class="text-h6">Share Document</div>
         </q-card-section>
         <q-card-section class="column">
-          <q-input v-model="shareAlias" label="User alias" class="q-mb-md" />
-          <q-select v-model="shareRole" :options="roleOptions" label="Permission" />
+          <q-input
+            v-model="shareAlias"
+            label="User alias"
+            class="q-mb-md"
+            data-cy="input-share-alias"
+          />
+          <q-select
+            v-model="shareRole"
+            :options="roleOptions"
+            label="Permission"
+            data-cy="select-share-role"
+          />
         </q-card-section>
         <q-card-actions align="right">
           <q-btn flat label="Cancel" v-close-popup />
-          <q-btn flat label="Share" color="primary" @click="doShare" v-close-popup />
+          <q-btn
+            flat
+            label="Share"
+            color="primary"
+            @click="doShare"
+            v-close-popup
+            data-cy="btn-share-doc"
+          />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -86,7 +119,14 @@
         </q-card-section>
         <q-card-actions align="right">
           <q-btn flat label="Cancel" v-close-popup />
-          <q-btn flat label="Delete" color="negative" @click="doDelete" v-close-popup />
+          <q-btn
+            flat
+            label="Delete"
+            color="negative"
+            @click="doDelete"
+            v-close-popup
+            data-cy="btn-delete-doc"
+          />
         </q-card-actions>
       </q-card>
     </q-dialog>
