@@ -7,6 +7,14 @@
       label="Logout"
       @click="authStore.logout"
     />
+    <q-btn
+      color="secondary"
+      v-if="authStore.isAuthenticated"
+      label="Download Recovery"
+      @click="authStore.downloadRecoveryFile"
+      class="q-ml-sm"
+      data-cy="btn-download-recovery"
+    />
   </q-toolbar>
 </template>
 

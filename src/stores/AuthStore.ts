@@ -121,6 +121,9 @@ export const useAuthStore = defineStore('auth', () => {
     user.leave();
     isAuthenticated.value = false;
     ackData.value = null;
+    // Clear credentials so that recovery edge-case tests start with empty inputs
+    alias.value = '';
+    pass.value = '';
     router.push('/').catch((e) => {
       console.error(e);
     });
@@ -128,6 +131,120 @@ export const useAuthStore = defineStore('auth', () => {
       type: 'info',
       message: 'Logged out.',
     });
+  }
+
+  function downloadRecoveryFile() {
+    // Allow users to export their key-pair & alias as a recovery file.
+    if (!isAuthenticated.value) {
+      Notify.create({
+        type: 'negative',
+        message: 'You must be signed in to generate a recovery file.',
+      });
+      return;
+    }
+
+    // The SEA key-pair is stored on the user instance after auth.
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore – Gun typing doesn't expose _ property. Using type assertion to access runtime keypair.
+    const pair = (user as unknown as { _?: { sea?: unknown } })._?.sea || ackData.value?.sea;
+    if (!pair) {
+      Notify.create({
+        type: 'negative',
+        message: 'Could not locate key-pair on the user object.',
+      });
+      return;
+    }
+
+    const recoveryData = {
+      alias: alias.value,
+      keys: pair,
+    };
+
+    const blob = new Blob([JSON.stringify(recoveryData, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${alias.value}_recovery.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Attempt to authenticate using a previously downloaded recovery file.
+   * The user must supply the recovery file plus EITHER their alias OR their passphrase.
+   *
+   * @param recoveryFileContent Raw text content of the uploaded recovery JSON file.
+   * @param providedAlias Optional alias entered by the user.
+   * @param providedPass Optional passphrase entered by the user.
+   */
+  function recoverLogin(
+    recoveryFileContent: string | null,
+    providedAlias: string | null,
+    providedPass: string | null,
+  ) {
+    if (!recoveryFileContent) {
+      Notify.create({ type: 'negative', message: 'Please select a recovery file.' });
+      return;
+    }
+
+    Loading.show({ message: 'Recovering account…' });
+
+    try {
+      const parsed = JSON.parse(recoveryFileContent);
+      const fileAlias = parsed.alias as string | undefined;
+      const keys = parsed.keys as Record<string, unknown> | undefined;
+
+      if (!fileAlias || !keys) {
+        throw new Error('Missing alias or keys in recovery file');
+      }
+
+      // CASE 1: User provided their alias → authenticate with key-pair.
+      if (providedAlias && providedAlias.length > 0) {
+        if (providedAlias !== fileAlias) {
+          Notify.create({
+            type: 'warning',
+            message:
+              'Provided alias does not match alias stored in recovery file. Proceeding with file alias.',
+          });
+        }
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore – Keys shape conforms at runtime but types do not match perfectly.
+        const pair = keys as { pub: string; priv: string; epub: string; epriv: string };
+        user.auth(pair, (ack: Ack) => {
+          if (ack.err) {
+            Loading.hide();
+            Notify.create({ type: 'negative', message: `Recovery error: ${ack.err}` });
+          }
+        });
+        return;
+      }
+
+      // CASE 2: User provided their passphrase → authenticate with alias from file.
+      if (providedPass && providedPass.length > 0) {
+        user.auth(fileAlias, providedPass, (ack: Ack) => {
+          if (ack.err) {
+            Loading.hide();
+            Notify.create({ type: 'negative', message: `Recovery error: ${ack.err}` });
+          }
+        });
+        return;
+      }
+
+      // Neither alias nor pass provided.
+      Loading.hide();
+      Notify.create({
+        type: 'negative',
+        message: 'Please provide either your username OR your passphrase to recover your account.',
+      });
+    } catch (e) {
+      console.error(e);
+      Loading.hide();
+      Notify.create({ type: 'negative', message: 'Invalid recovery file.' });
+    }
   }
 
   return {
@@ -140,6 +257,8 @@ export const useAuthStore = defineStore('auth', () => {
     ackData,
     signUpError,
     user, // expose user instance
+    downloadRecoveryFile,
+    recoverLogin,
   };
 });
 

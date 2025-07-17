@@ -35,3 +35,7 @@ yarn-error.log*
 # gun-server.js
 gun-server.js
 /radata
+
+# cypress
+cypress/screenshots
+cypress/downloads
