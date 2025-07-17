@@ -12,9 +12,10 @@ export const useEditorStore = defineStore('editor', () => {
   let lastSent = '';
   let offHandler: any = null;
   let draftNode: any = null;
-  // lastRemoteText removed (was unused)
+  let baselineRemote: string | null = null;
   const networkStore = useNetworkStore();
   const conflict = ref<{ local: string; remote: string } | null>(null);
+  const latestRemote = ref('');
 
   const user = gun.user();
   const myPair: any = (user as any)._.sea;
@@ -22,33 +23,35 @@ export const useEditorStore = defineStore('editor', () => {
 
   async function reconcileDraft() {
     if (!symKey || !textNode || !draftNode) return;
-    const [encDraft, encRemote] = await Promise.all([
-      new Promise<any>((res) => draftNode.once((v: any) => res(v))),
-      new Promise<any>((res) => textNode.once((v: any) => res(v))),
-    ]);
+    const encDraft = await new Promise<any>((res) => draftNode.once((v: any) => res(v)));
 
     let localText = '';
-    let remoteText = '';
-
     if (typeof encDraft === 'string') {
       const dec = await (SEA as any).decrypt(encDraft, symKey);
       if (typeof dec === 'string') localText = dec;
     }
 
-    if (typeof encRemote === 'string') {
-      const dec = await (SEA as any).decrypt(encRemote, symKey);
-      if (typeof dec === 'string') remoteText = dec;
-    }
+    const remoteText = latestRemote.value;
 
     if (!localText) return; // nothing to sync
 
-    if (localText === remoteText) {
-      // Nothing to merge; clear draft.
+    // If remote hasn't changed since we went offline, auto-apply local
+    if (baselineRemote !== null && baselineRemote === remoteText) {
+      const newEnc =
+        typeof encDraft === 'string' ? encDraft : await (SEA as any).encrypt(localText, symKey);
+      lastSent = newEnc;
+      textNode.put(newEnc);
       draftNode.put(null);
+      baselineRemote = null;
       return;
     }
 
-    // If both remote and local differ, require user resolution.
+    if (localText === remoteText) {
+      draftNode.put(null);
+      baselineRemote = null;
+      return;
+    }
+
     conflict.value = { local: localText, remote: remoteText };
   }
 
@@ -67,7 +70,7 @@ export const useEditorStore = defineStore('editor', () => {
     draftNode.put(null);
     content.value = conflict.value.remote;
     conflict.value = null;
-    // nothing to reset
+    baselineRemote = null;
   }
 
   async function applyMerge(mergedText: string) {
@@ -78,18 +81,34 @@ export const useEditorStore = defineStore('editor', () => {
     if (draftNode) draftNode.put(null);
     content.value = mergedText;
     conflict.value = null;
-    // nothing to reset
+    baselineRemote = null;
   }
 
   // Watch online/offline transitions
   watch(
     () => networkStore.isOnline,
-    (online, prev) => {
+    async (online, prev) => {
+      if (!online && prev) {
+        // Just went offline: capture baseline remote content
+        baselineRemote = content.value;
+      }
       if (online && !prev) {
-        void reconcileDraft();
+        // await to get up to date remote content
+        await new Promise((resolve) => setTimeout(resolve, 10000));
+        // Reconnected – attempt sync
+        reconcileDraft().catch((e) => {
+          console.error(e);
+        });
       }
     },
   );
+
+  // Watch remote updates when we have pending baselineRemote (i.e., after reconnect)
+  watch(latestRemote, async () => {
+    if (networkStore.isOnline && baselineRemote !== null) {
+      await reconcileDraft();
+    }
+  });
 
   async function openDocument(docId: string) {
     if (!myPub) return;
@@ -149,7 +168,6 @@ export const useEditorStore = defineStore('editor', () => {
     symKey = decryptedSym;
 
     textNode = docRef.get('text');
-    // grab initial remote value (unused after refactor)
     draftNode = docRef.get('drafts').get(myPub);
 
     // Load existing draft first (offline edits)
@@ -169,13 +187,12 @@ export const useEditorStore = defineStore('editor', () => {
     // Listen for remote updates
     offHandler = textNode.on(async (data: any) => {
       if (typeof data !== 'string') return;
-      if (data === lastSent) return;
       if (!symKey) return;
       const decrypted = await (SEA as any).decrypt(data, symKey);
-      if (typeof decrypted === 'string') {
-        if (decrypted !== content.value) {
-          content.value = decrypted;
-        }
+      if (typeof decrypted !== 'string') return;
+      latestRemote.value = decrypted;
+      if (decrypted !== content.value && data !== lastSent) {
+        content.value = decrypted;
       }
     });
   }

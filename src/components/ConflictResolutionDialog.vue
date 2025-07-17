@@ -65,6 +65,14 @@ import DiffMatchPatch from 'diff-match-patch';
 
 const dmp = new DiffMatchPatch();
 
+function htmlToLines(html: string): string[] {
+  return html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .split('\n');
+}
+
 const editorStore = useEditorStore();
 
 const isOpen = computed({
@@ -74,8 +82,8 @@ const isOpen = computed({
   },
 });
 
-const localLines = computed(() => (editorStore.conflict?.local || '').split(/\n/));
-const remoteLines = computed(() => (editorStore.conflict?.remote || '').split(/\n/));
+const localLines = computed(() => htmlToLines(editorStore.conflict?.local || ''));
+const remoteLines = computed(() => htmlToLines(editorStore.conflict?.remote || ''));
 
 interface LineMeta {
   local: string;
@@ -139,7 +147,9 @@ const hasLines = computed(() => lineData.value.length > 0);
 const hasDiff = computed(() => diffCount.value > 0);
 
 function onKeepLocal() {
-  editorStore.keepLocal();
+  editorStore.keepLocal().catch((e) => {
+    console.error(e);
+  });
 }
 
 function onAcceptRemote() {
@@ -156,6 +166,8 @@ function onMerge() {
     }
   }
   const mergedText = mergedLines.join('\n');
-  editorStore.applyMerge(mergedText);
+  editorStore.applyMerge(mergedText).catch((e) => {
+    console.error(e);
+  });
 }
 </script>
