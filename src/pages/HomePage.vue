@@ -13,9 +13,15 @@
       </div>
       <q-list bordered separator>
         <q-item v-for="d in docsStore.docs" :key="d.id" clickable :data-doc-id="d.id">
-          <q-item-section @click="openDoc(d.id)" data-cy="doc-item-title">{{
-            d.title
-          }}</q-item-section>
+          <q-item-section @click="openDoc(d.id)" data-cy="doc-item-title">
+            <div class="text-bold">{{ d.title }}</div>
+            <div class="text-caption text-grey-7">
+              Owner: <span data-cy="doc-creator">{{ d.creator }}</span
+              ><span v-if="d.role.toLocaleLowerCase() !== 'owner'">
+                · <span data-cy="doc-role">{{ d.role }}</span></span
+              >
+            </div>
+          </q-item-section>
           <q-item-section side>
             <q-btn
               dense
@@ -23,10 +29,18 @@
               icon="share"
               @click.stop="dialogStore.openShareDocumentDialog(d)"
               data-cy="icon-share-doc"
+              v-if="d.role !== 'viewer'"
             />
-            <q-btn dense flat icon="edit" @click.stop="dialogStore.openRenameDocumentDialog(d)" />
             <q-btn
-              v-if="d.isOwner"
+              dense
+              flat
+              icon="edit"
+              data-cy="icon-rename-doc"
+              @click.stop="dialogStore.openRenameDocumentDialog(d)"
+              v-if="d.role !== 'viewer'"
+            />
+            <q-btn
+              v-if="d.role.toLocaleLowerCase() === 'owner'"
               dense
               flat
               color="negative"

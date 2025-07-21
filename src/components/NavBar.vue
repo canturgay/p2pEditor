@@ -1,6 +1,7 @@
 <template>
   <q-toolbar>
     <q-toolbar-title> P2P Editor </q-toolbar-title>
+    <q-chip dense class="q-mr-sm" v-if="authStore.isAuthenticated">{{ authStore.alias }}</q-chip>
     <q-btn
       color="negative"
       v-if="authStore.isAuthenticated"

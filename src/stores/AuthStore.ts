@@ -52,6 +52,14 @@ export const useAuthStore = defineStore('auth', () => {
   const user = gun.user();
   user.recall({ sessionStorage: true });
 
+  // Restore state if session already authenticated
+  if (user.is?.pub) {
+    user.get('alias').once((a) => {
+      if (typeof a === 'string') alias.value = a;
+    });
+    isAuthenticated.value = true;
+  }
+
   // Listen for successful authentication events
   gun.on('auth', (ack: Ack) => {
     if (ack.ok !== 0) {
@@ -144,8 +152,6 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     // The SEA key-pair is stored on the user instance after auth.
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore – Gun typing doesn't expose _ property. Using type assertion to access runtime keypair.
     const pair = (user as unknown as { _?: { sea?: unknown } })._?.sea || ackData.value?.sea;
     if (!pair) {
       Notify.create({
@@ -211,8 +217,6 @@ export const useAuthStore = defineStore('auth', () => {
               'Provided alias does not match alias stored in recovery file. Proceeding with file alias.',
           });
         }
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore – Keys shape conforms at runtime but types do not match perfectly.
         const pair = keys as { pub: string; priv: string; epub: string; epriv: string };
         user.auth(pair, (ack: Ack) => {
           if (ack.err) {

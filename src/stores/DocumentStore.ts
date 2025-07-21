@@ -10,7 +10,8 @@ import { Notify } from 'quasar';
 interface DocumentMeta {
   id: string;
   title: string;
-  isOwner: boolean;
+  role: 'owner' | 'editor' | 'viewer';
+  creator: string;
 }
 
 export const useDocumentStore = defineStore('documents', () => {
@@ -44,6 +45,12 @@ export const useDocumentStore = defineStore('documents', () => {
     // Basic meta information
     docRef.get('title').put(title);
     docRef.get('created').put(Date.now());
+
+    // Store creator alias for UI purposes
+    const selfAlias = await new Promise<string | undefined>((res) =>
+      user.get('alias').once((a: any) => res(a as string | undefined)),
+    );
+    docRef.get('creatorAlias').put(selfAlias || 'unknown');
 
     // Register ownership & encrypted key
     docRef.get('owners').get(myPub).put(true);
@@ -129,9 +136,41 @@ export const useDocumentStore = defineStore('documents', () => {
 
     docs.value.length = 0; // reset
 
-    const addDoc = (docId: string, isOwner: boolean, title: string | undefined) => {
+    const addDoc = (
+      docId: string,
+      role: 'owner' | 'editor' | 'viewer',
+      title: string | undefined,
+      creator: string | undefined,
+    ) => {
       if (docs.value.some((d) => d.id === docId)) return; // avoid dupes
-      docs.value.push({ id: docId, title: title || 'Untitled', isOwner });
+
+      const entry = {
+        id: docId,
+        title: title || 'Untitled',
+        role,
+        creator: creator || '',
+      } as DocumentMeta;
+      docs.value.push(entry);
+
+      // Live role updates
+      gun
+        .get('documents')
+        .get(docId)
+        .get('roles')
+        .get(myPub)
+        .on((r: any) => {
+          const newRole =
+            r === 'viewer'
+              ? 'viewer'
+              : r === 'editor'
+                ? 'editor'
+                : typeof r === 'string'
+                  ? (r.toLowerCase() as 'viewer' | 'editor')
+                  : 'viewer'; // fallback
+          if (entry.role !== 'owner' && entry.role !== newRole) {
+            entry.role = newRole;
+          }
+        });
     };
 
     // 1. Docs explicitly referenced in the user's list (owner or shared)
@@ -142,12 +181,32 @@ export const useDocumentStore = defineStore('documents', () => {
         if (!isTrue) return;
         const docRef = gun.get('documents').get(docId);
         docRef.get('title').once((title: string) => {
-          docRef
-            .get('owners')
-            .get(myPub)
-            .once((ownerFlag: any) => {
-              addDoc(docId, !!ownerFlag, title);
-            });
+          Promise.all([
+            new Promise<boolean>((res) =>
+              docRef
+                .get('owners')
+                .get(myPub)
+                .once((o: any) => res(!!o)),
+            ),
+            new Promise<string | undefined>((res) =>
+              docRef
+                .get('roles')
+                .get(myPub)
+                .once((r: any) => res(r as string | undefined)),
+            ),
+            new Promise<string | undefined>((res) =>
+              docRef.get('creatorAlias').once((a: any) => res(a as string | undefined)),
+            ),
+          ])
+            .then(([isOwner, roleVal, creatorAlias]) => {
+              const role: 'owner' | 'editor' | 'viewer' = isOwner
+                ? 'owner'
+                : roleVal === 'viewer'
+                  ? 'viewer'
+                  : 'viewer';
+              addDoc(docId, role, title, creatorAlias);
+            })
+            .catch(() => {});
         });
       });
 
@@ -164,8 +223,22 @@ export const useDocumentStore = defineStore('documents', () => {
           .once((roleVal: any) => {
             if (!roleVal) return;
             docRef.get('title').once((title: string) => {
-              const isOwner = false;
-              addDoc(docId, isOwner, title);
+              Promise.all([
+                new Promise<string | undefined>((res) =>
+                  docRef
+                    .get('roles')
+                    .get(myPub)
+                    .once((r: any) => res(r as string | undefined)),
+                ),
+                new Promise<string | undefined>((res) =>
+                  docRef.get('creatorAlias').once((a: any) => res(a as string | undefined)),
+                ),
+              ])
+                .then(([roleVal, creatorAlias]) => {
+                  const role: 'editor' | 'viewer' = roleVal === 'viewer' ? 'viewer' : 'viewer';
+                  addDoc(docId, role, title, creatorAlias);
+                })
+                .catch(() => {});
             });
           });
       });
