@@ -1,5 +1,30 @@
 # P2P Editor – Offline-First Realtime Collaboration
 
+**Running the suite**
+
+```bash
+# 1. Install dependencies
+npm install  # or pnpm/yarn
+
+# 2. Start a local GUN relay (optional but recommended for stability)
+node gun-server.js &
+
+# 3. Launch the dev UI (served via Quasar Vite)
+npm run dev      # alias for `quasar dev`
+
+# In another terminal you can run the automated tests:
+npm run test:e2e
+
+# interactive GUI
+npm run cypress:open
+```
+
+About the relay: This project remains **server-less** in the architectural sense—each browser keeps its own copy of the data and can sync **directly** with any accessible peer.  
+`gun-server.js` is merely a convenience bootstrap **peer** that speaks WebSocket so two tabs (or two devices) can discover each other when no other peers happen to be online yet (fresh user-base). Every participant can run their own relay; no central server holds authority or exclusive state.  
+If you skip it the app will automatically connect to GUN’s public Manhattan relay, so the “no-backend” promise is still intact; the local relay just accelerates tests, provides deterministic storage for demos, and keeps your data on your machine.
+
+---
+
 ## 1 · User Guide
 
 ### What is P2P Editor?
@@ -141,17 +166,3 @@ The `cypress/` directory hosts an extensive suite covering the happy-paths **and
 
 - `cypress/support/e2e.ts` adds `cy.signup`, `cy.login`, `cy.logout` for succinct test scripts while preserving TS typings via _global augmentation_.
 - Tests simulate offline by overriding `navigator.onLine` **and** calling the dev helpers `window.blockGunConnections()` / `window.restoreGunConnections()` that the boot file exposes.
-
-**Running the suite**
-
-```bash
-# headless run (CI friendly)
-npm run test:e2e
-
-# interactive GUI
-npm run cypress:open
-```
-
-The headless run is executed in CI to guarantee features keep working across refactors.
-
----

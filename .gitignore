@@ -33,7 +33,6 @@ yarn-error.log*
 .env.local*
 
 # gun-server.js
-gun-server.js
 /radata
 
 # cypress
