@@ -22,6 +22,8 @@ It lets you:
 4. **Offline mode** – simply turn off your connection. The network status is monitored automatically; drafts are cached until you return online.
 5. **View-only sessions** – if you open a document as a _viewer_ you’ll see a grey “View Only” badge and the editor is locked.
 6. **Recovery** – in the toolbar, click _Download Recovery_. Keep the resulting JSON file safe. From the login screen you can _Recover_ using either that file+username **OR** file+passphrase.
+7. **Document list context** – each row shows the creator’s alias and your access level (owner / editor / viewer). Icons adapt: viewers see no rename/share/delete, editors see rename & share, only owners can delete.
+8. **NavBar** – once signed in, your alias is displayed as a chip on the top-right for quick context.
 
 ---
 
@@ -133,6 +135,7 @@ The `cypress/` directory hosts an extensive suite covering the happy-paths **and
 | `conflict.cy.ts`   | Force offline, diverge edits, simulate remote change, ensure **Conflict Resolution Dialog** behaves as designed.                    |
 | `recovery.cy.ts`   | Download recovery JSON, restore via file+alias or file+pass, plus validation errors.                                                |
 | `scale.cy.ts`      | Stress test: 50 kB document, share with 5 collaborators (mix of editors & viewers), verify viewer lock-down and cross-peer updates. |
+| `ui_roles.cy.ts`   | UI regression for role labels, icon visibility and "View Only" badge behaviour.                                                     |
 
 **Helpers & Custom Commands**
 
