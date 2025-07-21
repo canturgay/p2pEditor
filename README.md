@@ -6,13 +6,13 @@
 # 1. Install dependencies
 npm install  # or pnpm/yarn
 
-# 2. Start a local GUN relay (optional but recommended for stability)
-node gun-server.js &
+# 2. Start a local GUN relay (optional but recommended for stability):
+node gun-server.js
 
-# 3. Launch the dev UI (served via Quasar Vite)
+# 3. Launch the dev UI (served via Quasar Vite)(seperate terminal):
 npm run dev      # alias for `quasar dev`
 
-# In another terminal you can run the automated tests:
+# You can run the automated tests (seperate terminal):
 npm run test:e2e
 
 # interactive GUI
