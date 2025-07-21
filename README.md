@@ -19,9 +19,24 @@ npm run test:e2e
 npm run cypress:open
 ```
 
-About the relay: This project remains **server-less** in the architectural sense—each browser keeps its own copy of the data and can sync **directly** with any accessible peer.  
-`gun-server.js` is merely a convenience bootstrap **peer** that speaks WebSocket so two tabs (or two devices) can discover each other when no other peers happen to be online yet (fresh user-base). Every participant can run their own relay; no central server holds authority or exclusive state.  
-If you skip it the app will automatically connect to GUN’s public Manhattan relay, so the “no-backend” promise is still intact; the local relay just accelerates tests, provides deterministic storage for demos, and keeps your data on your machine.
+**About the relay:**
+
+This project remains **server-less** in the architectural sense—each browser keeps its own copy of the data and can sync **directly** with any accessible peer.
+
+The `gun-server.js` script is merely a convenience bootstrap **peer** that:
+
+- Speaks WebSocket protocol
+- Allows tabs/devices to discover each other
+- Helps bootstrap when no other peers are online yet
+- Can be run by any participant (no central authority)
+
+If you skip running the relay locally, the app will automatically connect to GUN's public Manhattan relay. This means:
+
+- The "no-backend" promise remains intact
+- Local relay is optional but recommended for:
+  - Faster test execution
+  - Deterministic storage for demos
+  - Keeping your data on your machine
 
 ---
 
@@ -73,25 +88,27 @@ It lets you:
 
 ### 2.3 High-Level Architecture
 
-```mermaid
-graph TD;
-  subgraph Client (Browser)
-    A[Vue 3 / Quasar UI] --> B(Pinia Stores);
-    B --> C(EditorStore);
-    B --> D(DocumentStore);
-    B --> E(AuthStore);
-    C --binds--> F[q-editor];
-  end
+![Sequence Diagram](src/assets//sequence_diagram.svg)
 
-  C -->|encrypt/decrypt| G(GUN SEA);
-  D -->|CRUD Meta| G;
-  E -->|User / Keys| G;
-  G <--> H[(GUN Graph\n+ HAM CRDT)];
-  H <--> I[[Relay Peer*]];
-  H <--> J[[Other Browsers]];
+#### Identity Bootstrap
 
-  note right of I: *Optional node process holding persistent storage
-```
+The browser signs in against any GUN peer and receives a key-pair acknowledgment.
+
+#### Document Creation & Sharing
+
+The creator generates a fresh symmetric key, stores it encrypted for themselves, then re-encrypts and stores it for each collaborator's public key, assigning a role (viewer/editor).
+
+#### Document Discovery
+
+Peers list documents by scanning owners and roles directories; each row shows the stored creator alias and the current user's role.
+
+#### Live Editing Loop
+
+Edits are symmetrically encrypted locally, written once, replicated by GUN, and decrypted on every peer—no server transforms the payload.
+
+#### Offline Draft & Conflict Path
+
+While disconnected, a draft copy is cached locally. On reconnection the editor compares the draft with the baseline remote version. If remote changed, the Conflict Resolution dialog lets the user merge, keep local, or accept remote. Otherwise the draft is flushed automatically.
 
 ### 2.4 Store Responsibilities
 
@@ -142,8 +159,7 @@ If we simply removed the key locally, an offline peer could later re-introduce t
 - **Goals met:** fully browser-based identity, P2P collaboration, conflict resolution UI, offline support.
 - **Limitations:**
   - No granular TTBR/garbage-collection – relay peer may accumulate tombstones.
-  - HAM is LWW; more sophisticated merge semantics (e.g. per-character CRDT) could avoid conflicts entirely but at higher complexity.
-  * **Why keep manual conflict UI?** The capstone explicitly set out to **demonstrate conflict management**. Using a full-fledged per-character CRDT (Yjs/Automerge) would remove most user-visible conflicts, making that goal moot while adding significant encryption, storage and performance overhead. HAM’s last-writer-wins model generates _occasional, resolvable_ divergences—perfect for showcasing a dedicated merge dialog.
+  - HAM is LWW; more sophisticated merge semantics (e.g. per-character CRDT) could avoid conflicts entirely but the expose explicitly set out to **demonstrate conflict management**. Using a full-fledged per-character CRDT (Yjs/Automerge) would remove most user-visible conflicts, making that goal moot while adding significant encryption, storage and performance overhead. HAM’s last-writer-wins model generates _occasional, resolvable_ divergences—perfect for showcasing a dedicated merge dialog.
 
 ### 2.8 Automated End-to-End Tests (Cypress)
 
