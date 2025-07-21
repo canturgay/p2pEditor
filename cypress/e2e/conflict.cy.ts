@@ -51,6 +51,7 @@ describe('Conflict resolution dialog', () => {
     cy.get('[data-cy="editor"]').within(() => {
       cy.get('[contenteditable="true"]').type(' OFFLINE', { delay: 10 });
     });
+    cy.wait(400); // allow debounce to persist draft
 
     // Simulate remote edit while offline
     cy.get('@docId').then((docId) => {

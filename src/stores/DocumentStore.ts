@@ -22,6 +22,50 @@ export const useDocumentStore = defineStore('documents', () => {
   const myPair: any = (user as any)._.sea; // key pair
   const myPub: string | undefined = (user.is as any)?.pub;
 
+  function normalizeRole(val: unknown): 'viewer' | 'editor' | undefined {
+    if (!val) return undefined;
+    if (typeof val === 'string') {
+      const v = val.toLowerCase();
+      return v === 'viewer' || v === 'editor' ? v : undefined;
+    }
+    if (typeof val === 'object') {
+      const k = Object.keys(val as Record<string, unknown>)[0];
+      if (k === 'viewer' || k === 'editor') return k;
+    }
+    return undefined;
+  }
+
+  // Helper that fetches frequently-needed metadata for a doc
+  async function fetchDocMeta(docRef: any): Promise<{
+    title: string | undefined;
+    isOwner: boolean;
+    roleVal: string | undefined;
+    creatorAlias: string | undefined;
+  }> {
+    const [title, isOwner, roleVal, creatorAlias] = await Promise.all([
+      new Promise<string | undefined>((res) =>
+        docRef.get('title').once((t: any) => res(t as string | undefined)),
+      ),
+      new Promise<boolean>((res) =>
+        docRef
+          .get('owners')
+          .get(myPub)
+          .once((o: any) => res(!!o)),
+      ),
+      new Promise<string | undefined>((res) =>
+        docRef
+          .get('roles')
+          .get(myPub)
+          .once((r: any) => res(r as string | undefined)),
+      ),
+      new Promise<string | undefined>((res) =>
+        docRef.get('creatorAlias').once((a: any) => res(a as string | undefined)),
+      ),
+    ]);
+
+    return { title, isOwner, roleVal, creatorAlias };
+  }
+
   /**
    * Create a brand-new empty document, generate a symmetric key for it, and
    * register current user as owner.
@@ -159,16 +203,9 @@ export const useDocumentStore = defineStore('documents', () => {
         .get('roles')
         .get(myPub)
         .on((r: any) => {
-          const newRole =
-            r === 'viewer'
-              ? 'viewer'
-              : r === 'editor'
-                ? 'editor'
-                : typeof r === 'string'
-                  ? (r.toLowerCase() as 'viewer' | 'editor')
-                  : 'viewer'; // fallback
-          if (entry.role !== 'owner' && entry.role !== newRole) {
-            entry.role = newRole;
+          const norm = normalizeRole(r) || 'viewer';
+          if (entry.role !== 'owner' && entry.role !== norm) {
+            entry.role = norm;
           }
         });
     };
@@ -180,34 +217,13 @@ export const useDocumentStore = defineStore('documents', () => {
       .once((isTrue: any, docId: string) => {
         if (!isTrue) return;
         const docRef = gun.get('documents').get(docId);
-        docRef.get('title').once((title: string) => {
-          Promise.all([
-            new Promise<boolean>((res) =>
-              docRef
-                .get('owners')
-                .get(myPub)
-                .once((o: any) => res(!!o)),
-            ),
-            new Promise<string | undefined>((res) =>
-              docRef
-                .get('roles')
-                .get(myPub)
-                .once((r: any) => res(r as string | undefined)),
-            ),
-            new Promise<string | undefined>((res) =>
-              docRef.get('creatorAlias').once((a: any) => res(a as string | undefined)),
-            ),
-          ])
-            .then(([isOwner, roleVal, creatorAlias]) => {
-              const role: 'owner' | 'editor' | 'viewer' = isOwner
-                ? 'owner'
-                : roleVal === 'viewer'
-                  ? 'viewer'
-                  : 'viewer';
-              addDoc(docId, role, title, creatorAlias);
-            })
-            .catch(() => {});
-        });
+        fetchDocMeta(docRef)
+          .then(({ title, isOwner, roleVal, creatorAlias }) => {
+            const norm = normalizeRole(roleVal);
+            const role: 'owner' | 'editor' | 'viewer' = isOwner ? 'owner' : norm || 'viewer';
+            addDoc(docId, role, title, creatorAlias);
+          })
+          .catch(() => {});
       });
 
     // 2. Fallback discovery: scan all documents for roles including current user
@@ -217,30 +233,14 @@ export const useDocumentStore = defineStore('documents', () => {
       .on((docMeta: any, docId: string) => {
         if (!docId) return;
         const docRef = gun.get('documents').get(docId);
-        docRef
-          .get('roles')
-          .get(myPub)
-          .once((roleVal: any) => {
-            if (!roleVal) return;
-            docRef.get('title').once((title: string) => {
-              Promise.all([
-                new Promise<string | undefined>((res) =>
-                  docRef
-                    .get('roles')
-                    .get(myPub)
-                    .once((r: any) => res(r as string | undefined)),
-                ),
-                new Promise<string | undefined>((res) =>
-                  docRef.get('creatorAlias').once((a: any) => res(a as string | undefined)),
-                ),
-              ])
-                .then(([roleVal, creatorAlias]) => {
-                  const role: 'editor' | 'viewer' = roleVal === 'viewer' ? 'viewer' : 'viewer';
-                  addDoc(docId, role, title, creatorAlias);
-                })
-                .catch(() => {});
-            });
-          });
+        fetchDocMeta(docRef)
+          .then(({ title, roleVal, creatorAlias }) => {
+            if (!roleVal) return; // current user not a participant
+            const norm = normalizeRole(roleVal);
+            const role: 'editor' | 'viewer' = norm || 'viewer';
+            addDoc(docId, role, title, creatorAlias);
+          })
+          .catch(() => {});
       });
   }
 

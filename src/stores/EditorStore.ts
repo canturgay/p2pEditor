@@ -233,17 +233,22 @@ export const useEditorStore = defineStore('editor', () => {
       });
   }
 
-  function close() {
-    if (offHandler && textNode) {
-      textNode.off();
-    }
-    activeDocId.value = null;
-    content.value = '';
-    symKey = null;
-  }
-
-  // Persist local edits with light debounce – avoids excessive encrypt/put on large pastes
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
+
+  async function persistNow(text: string) {
+    if (!symKey) return;
+    if (text === '') return;
+
+    const encrypted = await (SEA as any).encrypt(text, symKey);
+
+    if (networkStore.isOnline && textNode) {
+      if (encrypted === lastSent) return;
+      textNode.put(encrypted);
+    } else if (draftNode) {
+      draftNode.put(encrypted);
+    }
+    lastSent = encrypted;
+  }
 
   watch(content, (newVal) => {
     if (!symKey) return;
@@ -255,23 +260,25 @@ export const useEditorStore = defineStore('editor', () => {
 
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     saveTimer = setTimeout(async () => {
-      if (!symKey) return;
-      if (newVal === '') return;
-
-      const encrypted = await (SEA as any).encrypt(newVal, symKey);
-
-      if (networkStore.isOnline && textNode) {
-        if (encrypted === lastSent) return;
-        lastSent = encrypted;
-        textNode.put(encrypted);
-        // Clear draft copy if exists
-        if (draftNode) draftNode.put(null);
-      } else if (draftNode) {
-        // Offline – store to draft subnode
-        draftNode.put(encrypted);
-      }
+      await persistNow(newVal);
     }, 300); // 300 ms idle debounce
   });
+
+  function close() {
+    // flush pending save immediately
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+      void persistNow(content.value);
+    }
+
+    if (offHandler && textNode) {
+      textNode.off();
+    }
+    activeDocId.value = null;
+    content.value = '';
+    symKey = null;
+  }
 
   return {
     content,
