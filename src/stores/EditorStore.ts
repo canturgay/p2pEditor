@@ -16,6 +16,7 @@ export const useEditorStore = defineStore('editor', () => {
   const networkStore = useNetworkStore();
   const conflict = ref<{ local: string; remote: string } | null>(null);
   const latestRemote = ref('');
+  const canEdit = ref(true);
 
   const user = gun.user();
   const myPair: any = (user as any)._.sea;
@@ -120,6 +121,7 @@ export const useEditorStore = defineStore('editor', () => {
     }
 
     activeDocId.value = docId;
+    canEdit.value = false;
     content.value = '';
     lastSent = '';
     symKey = null;
@@ -167,6 +169,31 @@ export const useEditorStore = defineStore('editor', () => {
 
     symKey = decryptedSym;
 
+    // Determine role
+    const [roleVal, ownerFlag] = await Promise.all([
+      new Promise<string | undefined>((resolve) => {
+        docRef
+          .get('roles')
+          .get(myPub)
+          .once((r: any) => resolve(r as string | undefined), { wait: 1500 });
+      }),
+      new Promise<boolean>((resolve) => {
+        docRef
+          .get('owners')
+          .get(myPub)
+          .once((v: any) => resolve(!!v));
+      }),
+    ]);
+
+    if (roleVal === 'viewer') {
+      canEdit.value = false;
+    } else if (roleVal === 'editor') {
+      canEdit.value = true;
+    } else {
+      // If no explicit role, fall back to ownership flag
+      canEdit.value = ownerFlag;
+    }
+
     textNode = docRef.get('text');
     draftNode = docRef.get('drafts').get(myPub);
 
@@ -195,6 +222,15 @@ export const useEditorStore = defineStore('editor', () => {
         content.value = decrypted;
       }
     });
+
+    // Keep listening for role changes to adjust canEdit dynamically
+    docRef
+      .get('roles')
+      .get(myPub)
+      .on((role: any) => {
+        if (role === 'viewer') canEdit.value = false;
+        else if (role === 'editor') canEdit.value = true;
+      });
   }
 
   function close() {
@@ -206,29 +242,42 @@ export const useEditorStore = defineStore('editor', () => {
     symKey = null;
   }
 
-  // Persist local edits
-  watch(content, async (newVal) => {
+  // Persist local edits with light debounce – avoids excessive encrypt/put on large pastes
+  let saveTimer: ReturnType<typeof setTimeout> | null = null;
+
+  watch(content, (newVal) => {
     if (!symKey) return;
     if (newVal === '') return;
+    if (!canEdit.value) return; // viewers cannot persist
 
-    const encrypted = await (SEA as any).encrypt(newVal, symKey);
+    // Clear previous pending save
+    if (saveTimer) clearTimeout(saveTimer);
 
-    if (networkStore.isOnline && textNode) {
-      if (encrypted === lastSent) return;
-      lastSent = encrypted;
-      textNode.put(encrypted);
-      // Clear draft copy if exists
-      if (draftNode) draftNode.put(null);
-    } else if (draftNode) {
-      // Offline – store to draft subnode
-      draftNode.put(encrypted);
-    }
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    saveTimer = setTimeout(async () => {
+      if (!symKey) return;
+      if (newVal === '') return;
+
+      const encrypted = await (SEA as any).encrypt(newVal, symKey);
+
+      if (networkStore.isOnline && textNode) {
+        if (encrypted === lastSent) return;
+        lastSent = encrypted;
+        textNode.put(encrypted);
+        // Clear draft copy if exists
+        if (draftNode) draftNode.put(null);
+      } else if (draftNode) {
+        // Offline – store to draft subnode
+        draftNode.put(encrypted);
+      }
+    }, 300); // 300 ms idle debounce
   });
 
   return {
     content,
     active: activeDocId,
     conflict,
+    canEdit,
     openDocument,
     close,
     keepLocal,

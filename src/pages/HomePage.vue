@@ -40,7 +40,18 @@
     </div>
     <div v-else>
       <q-btn flat icon="arrow_back" class="q-mb-md" @click="editorStore.close" data-cy="btn-back" />
-      <q-editor v-model="editorStore.content" data-cy="editor" />
+      <q-badge v-if="!editorStore.canEdit" color="grey-5" class="q-mb-sm" data-cy="view-only-badge"
+        >View Only</q-badge
+      >
+
+      <div
+        v-if="!editorStore.canEdit"
+        class="q-editor__content q-pa-sm bg-grey-2"
+        v-html="editorStore.content"
+        style="min-height: 10rem; border: 1px solid #ccc; border-radius: 4px"
+      />
+
+      <q-editor v-else v-model="editorStore.content" data-cy="editor" />
     </div>
 
     <!-- New document dialog -->

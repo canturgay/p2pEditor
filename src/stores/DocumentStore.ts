@@ -113,7 +113,6 @@ export const useDocumentStore = defineStore('documents', () => {
                 docRef.get('keyEncryptor').get(targetPub).put(myPair.epub);
                 // Assign role
                 docRef.get('roles').get(targetPub).put(role);
-                docRef.get('owners').get(targetPub).put(true);
 
                 Notify.create({ type: 'positive', message: `Shared with ${alias}` });
               });
