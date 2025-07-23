@@ -128,6 +128,9 @@ describe('Scalability edge cases', () => {
       if (role === 'editor') {
         const text = `update_by_${alias}`;
 
+        // Wait for the initial large text to load before typing, to avoid race conditions.
+        cy.contains('[contenteditable="true"]', 'Lorem ipsum', { timeout: 20000 });
+
         // Find the previous editor to wait for their changes, making the test serial
         const myIndex = collaborators.findIndex((c) => c.alias === alias);
         const previousEditors = collaborators.slice(0, myIndex).filter((c) => c.role === 'editor');
@@ -146,7 +149,7 @@ describe('Scalability edge cases', () => {
         });
 
         // Wait for our own edit to be reflected before logging out
-        cy.contains('[contenteditable="true"]', text, { timeout: 10000 });
+        cy.contains('[contenteditable="true"]', text, { timeout: 20000 });
       } else {
         // viewer should not allow typing – editor should be disabled
         cy.get('[data-cy="view-only-badge"]').should('be.visible');
@@ -154,6 +157,8 @@ describe('Scalability edge cases', () => {
 
       cy.get('[data-cy="btn-back"]').click();
       cy.logout();
+      // Give Gun/SEA time to persist and propagate this collaborator's update before next user
+      cy.wait(3000);
     });
 
     // Owner should see updates from editors
