@@ -21,10 +21,10 @@ jobs:
       - name: Cypress run (build + serve + tests)
         uses: cypress-io/github-action@v6
         with:
-          build: npm run build
-          start: npm run start:ci
-          wait-on: http://localhost:9000
-          wait-on-timeout: 120
+          build: npm run build # build once
+          start: npm run start:ci # static + relay
+          wait-on: http://localhost:9000/p2pEditor/
+          wait-on-timeout: 180 # give the static server 3 min max
           browser: chrome
           headless: true
         env:
