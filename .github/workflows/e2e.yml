@@ -25,3 +25,5 @@ jobs:
           start: npm run start:ci
           wait-on: http://localhost:9000
           wait-on-timeout: 120
+          browser: chrome
+          headless: true
