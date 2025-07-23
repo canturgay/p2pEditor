@@ -189,3 +189,29 @@ The `cypress/` directory hosts an extensive suite covering the happy-paths **and
 
 - SPA URL: [https://canturgay.github.io/p2pEditor/#/](https://canturgay.github.io/p2pEditor/#/)
 - GUN Relay URL: [https://chilly-charmain-can-turgay-2bdb3640.koyeb.app](https://chilly-charmain-can-turgay-2bdb3640.koyeb.app)
+
+## 3 · Continuous Integration & Deployment (GitHub Actions)
+
+A fully automated GitHub Actions workflow keeps the project continuously tested and deployed.
+
+### Trigger
+
+- Every push to the `main` branch.
+
+### Jobs
+
+1. **e2e**  
+   • Checks out the code and sets up **Node.js 20**.  
+   • Installs dependencies via `npm ci`.  
+   • Builds the Quasar SPA with `npm run build`, then serves it locally using `npm run start:ci`.  
+   • Executes the full Cypress end-to-end test suite in headless **Chrome**.
+2. **build-deploy** _(runs only if e2e succeeds)_  
+   • Performs a fresh checkout and dependency install for a clean environment.  
+   • Builds the production bundle with `PUBLIC_PATH` configured for GitHub Pages hosting (`npm run build`).  
+   • Publishes the contents of `dist/spa` to the `gh-pages` branch via **peaceiris/actions-gh-pages**.
+
+### Outcome
+
+If all tests pass, the workflow pushes the new build to **gh-pages**, which GitHub Pages serves at the public URL listed above. Any failing test blocks deployment, guaranteeing that the live demo is always in a healthy state.
+
+You can inspect the workflow file at `.github/workflows/gh-pages.yml` or view the latest runs on the repository’s **Actions** tab.
