@@ -127,12 +127,26 @@ describe('Scalability edge cases', () => {
 
       if (role === 'editor') {
         const text = `update_by_${alias}`;
-        cy.get('[data-cy="editor"]').within(() => {
-          cy.get('[contenteditable="true"]')
-            .scrollIntoView()
-            .type(`\n${text}`, { delay: 5, force: true });
+
+        // Find the previous editor to wait for their changes, making the test serial
+        const myIndex = collaborators.findIndex((c) => c.alias === alias);
+        const previousEditors = collaborators.slice(0, myIndex).filter((c) => c.role === 'editor');
+        const lastEditor = previousEditors[previousEditors.length - 1];
+
+        if (lastEditor) {
+          const prevText = `update_by_${lastEditor.alias}`;
+          cy.contains('[contenteditable="true"]', prevText, { timeout: 40000 }).should('exist');
+        }
+
+        // Add our edit
+        cy.get('[contenteditable="true"]').type(`\n${text}`, {
+          delay: 5,
+          force: true,
+          parseSpecialCharSequences: false,
         });
-        cy.wait(4000); // allow debounce and gun sync in CI
+
+        // Wait for our own edit to be reflected before logging out
+        cy.contains('[contenteditable="true"]', text, { timeout: 10000 });
       } else {
         // viewer should not allow typing – editor should be disabled
         cy.get('[data-cy="view-only-badge"]').should('be.visible');
@@ -147,14 +161,10 @@ describe('Scalability edge cases', () => {
     cy.get('[data-cy="btn-refresh"]').click();
     cy.contains('[data-cy="doc-item-title"]', docTitle, { timeout: 15000 }).click();
 
-    // Give Gun some time to propagate changes across peer users in CI environment
-    cy.wait(5000);
-
     collaborators
       .filter((c) => c.role === 'editor')
       .forEach((collab) => {
         const text = `update_by_${collab.alias}`;
-        // Wait up to 60 s for each collaborator's text to appear in the contenteditable area
         cy.contains('[contenteditable="true"]', text, { timeout: 60000 }).should('exist');
       });
   });
