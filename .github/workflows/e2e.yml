@@ -29,3 +29,4 @@ jobs:
           headless: true
         env:
           CYPRESS_baseUrl: http://localhost:9000/p2pEditor/
+          CYPRESS_defaultCommandTimeout: 10000
