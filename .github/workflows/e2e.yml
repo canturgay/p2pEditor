@@ -1,0 +1,27 @@
+name: End-to-End Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cypress run (build + serve + tests)
+        uses: cypress-io/github-action@v6
+        with:
+          build: npm run build
+          start: npm run start:ci
+          wait-on: http://localhost:9000
+          wait-on-timeout: 120

@@ -182,3 +182,10 @@ The `cypress/` directory hosts an extensive suite covering the happy-paths **and
 
 - `cypress/support/e2e.ts` adds `cy.signup`, `cy.login`, `cy.logout` for succinct test scripts while preserving TS typings via _global augmentation_.
 - Tests simulate offline by overriding `navigator.onLine` **and** calling the dev helpers `window.blockGunConnections()` / `window.restoreGunConnections()` that the boot file exposes.
+
+---
+
+## Live Deployment
+
+- SPA URL: [https://canturgay.github.io/p2pEditor/#/](https://canturgay.github.io/p2pEditor/#/)
+- GUN Relay URL: [https://chilly-charmain-can-turgay-2bdb3640.koyeb.app](https://chilly-charmain-can-turgay-2bdb3640.koyeb.app)
