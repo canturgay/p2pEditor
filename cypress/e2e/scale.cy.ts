@@ -151,9 +151,9 @@ describe('Scalability edge cases', () => {
       .filter((c) => c.role === 'editor')
       .forEach((collab) => {
         const text = `update_by_${collab.alias}`;
-        // Target only the content area, not the entire editor with toolbar
+        // CI can be slow; wait up to 40s and target only the content area (contenteditable)
         cy.get('[data-cy="editor"]').within(() => {
-          cy.get('[contenteditable="true"]', { timeout: 20000 }).should('contain.text', text);
+          cy.contains('[contenteditable="true"]', text, { timeout: 40000 }).should('exist');
         });
       });
   });

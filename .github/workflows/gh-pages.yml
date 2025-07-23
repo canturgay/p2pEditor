@@ -35,7 +35,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      # Install Node (pick the version you use locally)
+      # Install Node
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -46,7 +46,7 @@ jobs:
       # Build Quasar
       - name: Build
         env:
-          PUBLIC_PATH: /${{ github.event.repository.name }}/ # adjust for user-page if needed
+          PUBLIC_PATH: /${{ github.event.repository.name }}/
         run: npm run build # ==> dist/spa
 
       # Publish ./dist/spa to gh-pages
