@@ -76,7 +76,8 @@ export default defineConfig((/* ctx */) => {
         ],
       ],
 
-      publicPath: process.env.CI ? '/' : '/p2pEditor/',
+      // Honour explicit env override (e.g. set in GitHub Actions) – otherwise fall back to sensible defaults.
+      publicPath: process.env.PUBLIC_PATH || (process.env.CI ? '/' : '/p2pEditor/'),
     },
 
     // Full list of options: https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#devserver
