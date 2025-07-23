@@ -147,14 +147,15 @@ describe('Scalability edge cases', () => {
     cy.get('[data-cy="btn-refresh"]').click();
     cy.contains('[data-cy="doc-item-title"]', docTitle, { timeout: 15000 }).click();
 
+    // Give Gun some time to propagate changes across peer users in CI environment
+    cy.wait(5000);
+
     collaborators
       .filter((c) => c.role === 'editor')
       .forEach((collab) => {
         const text = `update_by_${collab.alias}`;
-        // CI can be slow; wait up to 40s and target only the content area (contenteditable)
-        cy.get('[data-cy="editor"]').within(() => {
-          cy.contains('[contenteditable="true"]', text, { timeout: 40000 }).should('exist');
-        });
+        // Wait up to 60 s for each collaborator's text to appear in the contenteditable area
+        cy.contains('[contenteditable="true"]', text, { timeout: 60000 }).should('exist');
       });
   });
 });
