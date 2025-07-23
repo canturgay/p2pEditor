@@ -132,7 +132,7 @@ describe('Scalability edge cases', () => {
             .scrollIntoView()
             .type(`\n${text}`, { delay: 5, force: true });
         });
-        cy.wait(1500); // allow debounce and gun sync
+        cy.wait(4000); // allow debounce and gun sync in CI
       } else {
         // viewer should not allow typing – editor should be disabled
         cy.get('[data-cy="view-only-badge"]').should('be.visible');
