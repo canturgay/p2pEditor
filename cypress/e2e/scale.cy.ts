@@ -151,7 +151,10 @@ describe('Scalability edge cases', () => {
       .filter((c) => c.role === 'editor')
       .forEach((collab) => {
         const text = `update_by_${collab.alias}`;
-        cy.get('[data-cy="editor"]', { timeout: 20000 }).should('contain.text', text);
+        // Target only the content area, not the entire editor with toolbar
+        cy.get('[data-cy="editor"]').within(() => {
+          cy.get('[contenteditable="true"]', { timeout: 20000 }).should('contain.text', text);
+        });
       });
   });
 });
