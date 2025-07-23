@@ -75,6 +75,8 @@ export default defineConfig((/* ctx */) => {
           { server: false },
         ],
       ],
+
+      publicPath: '/p2pEditor/',
     },
 
     // Full list of options: https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#devserver

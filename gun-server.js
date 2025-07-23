@@ -1,8 +1,7 @@
 import http from 'http';
 import Gun from 'gun';
 
-// Port can be overridden via env
-const PORT = process.env.PORT || 8765;
+const PORT = 8765;
 
 // Basic HTTP server (needed for Gun WS upgrade)
 const server = http.createServer((req, res) => {

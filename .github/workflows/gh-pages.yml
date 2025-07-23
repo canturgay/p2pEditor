@@ -1,0 +1,35 @@
+name: Deploy Quasar SPA to GitHub Pages
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # lets the action push to gh-pages
+    steps:
+      - uses: actions/checkout@v3
+
+      # Install Node (pick the version you use locally)
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Install dependencies
+      - run: npm ci # or pnpm install / yarn install
+
+      # Build Quasar
+      - name: Build
+        env:
+          PUBLIC_PATH: /${{ github.event.repository.name }}/ # adjust for user-page if needed
+        run: npm run build # ==> dist/spa
+
+      # Publish ./dist/spa to gh-pages
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: dist/spa
+          publish_branch: gh-pages
+          force_orphan: true # keeps gh-pages clean

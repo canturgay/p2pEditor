@@ -5,12 +5,15 @@ import SEA from 'gun/sea';
 import 'gun/lib/webrtc.js';
 
 // Default peer list, reused for reconnect attempts
-const DEFAULT_PEERS = ['http://localhost:8765/gun', 'https://gun-manhattan.herokuapp.com/gun'];
+const DEFAULT_PEERS = [
+  'http://localhost:8765/gun', // dev relay
+  'https://chilly-charmain-can-turgay-.../gun', // Koyeb
+  'https://gun-manhattan.herokuapp.com/gun', // public Manhattan
+];
 
 // Initialize Gun with default peers
 const gun = Gun({
-  peers: DEFAULT_PEERS,
-  localStorage: false,
+  peers: ['http://localhost:8765/gun', 'https://chilly-charmain-can-turgay-.../gun'],
   radisk: true,
 });
 
@@ -71,3 +74,11 @@ window.addEventListener('online', () => {
 
 // Export for use in .js files
 export { gun, SEA };
+
+setTimeout(() => {
+  const connected = Object.values(gun._.opt.peers).some((p) => p.wire && p.wire.readyState === 1);
+  if (!connected) {
+    gun.opt({ peers: ['https://gun-manhattan.herokuapp.com/gun'] });
+    console.info('[GUN] Added Manhattan fallback peer');
+  }
+}, 3000);
