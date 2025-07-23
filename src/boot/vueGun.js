@@ -7,13 +7,12 @@ import 'gun/lib/webrtc.js';
 // Default peer list, reused for reconnect attempts
 const DEFAULT_PEERS = [
   'http://localhost:8765/gun', // dev relay
-  'https://chilly-charmain-can-turgay-.../gun', // Koyeb
-  'https://gun-manhattan.herokuapp.com/gun', // public Manhattan
+  'https://chilly-charmain-can-turgay-2bdb3640.koyeb.app/gun', // Koyeb
 ];
 
 // Initialize Gun with default peers
 const gun = Gun({
-  peers: ['http://localhost:8765/gun', 'https://chilly-charmain-can-turgay-.../gun'],
+  peers: DEFAULT_PEERS,
   radisk: true,
 });
 
