@@ -83,7 +83,7 @@ describe('Conflict resolution dialog', () => {
       });
     });
 
-    // Go back online
+    // Go back online + wait for potential chunk reload
     cy.window().then((win) => {
       Object.defineProperty(win.navigator, 'onLine', {
         configurable: true,
@@ -93,6 +93,7 @@ describe('Conflict resolution dialog', () => {
       // @ts-ignore
       win.restoreGunConnections();
       win.dispatchEvent(new Event('online'));
+      cy.wait(2000); // Wait for CI to stabilize after online event
     });
 
     // Expect conflict dialog
